@@ -1,0 +1,13 @@
+.main-container {
+    -fx-background-color: #ecf0f1;
+    -fx-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.text-field {
+    -fx-padding: 8px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+.button:hover {
+    -fx-background-color: #2980b9;
+    -fx-cursor: hand;
+}

@@ -1,8 +1,11 @@
 package com.bidhub.server;
 
 import com.bidhub.server.database.MigrationRunner;
-import com.bidhub.server.dao.UserDAO;
-import com.bidhub.server.model.user.Bidder;
+import com.bidhub.server.network.ClientHandler;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 public class ServerApp {
     public static final int DEFAULT_PORT = 8888;
@@ -12,18 +15,25 @@ public class ServerApp {
 
         // 1. Khởi tạo Database
         MigrationRunner.runMigrations();
+        System.out.println("BidHub Server đã sẵn sàng Database!");
 
-        // 2. Test thử DAO: Tạo một người dùng ảo và lưu vào DB
-        UserDAO userDao = new UserDAO();
-        try {
-            // Nhớ đổi username ở đây nếu bạn chạy file này nhiều lần, vì username có thuộc tính UNIQUE (không được trùng)
-            Bidder testUser = new Bidder("techlead_01", "hashed_password_abc123", "techlead@bidhub.com");
-            userDao.save(testUser);
-        } catch (Exception e) {
-            System.out.println("User đã tồn tại hoặc có lỗi xảy ra.");
+        // 2. Mở cổng Socket Lắng nghe
+        try (ServerSocket serverSocket = new ServerSocket(DEFAULT_PORT)) {
+            System.out.println("🚀 Đang lắng nghe Client kết nối ở cổng " + DEFAULT_PORT + "...");
+
+            // Vòng lặp vô hạn để đón khách mới
+            while (true) {
+                // Lệnh accept() sẽ "đứng đợi" ở đây cho đến khi có 1 Client nhấc máy gọi tới
+                Socket clientSocket = serverSocket.accept();
+
+                // Khi có khách, ném khách đó cho 1 nhân viên (ClientHandler) chạy ở luồng (Thread) mới
+                ClientHandler handler = new ClientHandler(clientSocket);
+                Thread thread = new Thread(handler);
+                thread.start();
+            }
+
+        } catch (IOException e) {
+            System.err.println("Lỗi sập Server: " + e.getMessage());
         }
-
-        System.out.println("BidHub Server đã chạy thành công!");
-        System.out.println("Đang lắng nghe ở cổng " + DEFAULT_PORT + "...");
     }
 }

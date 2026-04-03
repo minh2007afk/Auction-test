@@ -12,6 +12,7 @@ public class Bidder extends User {
         this.walletBalance = 0.0;
     }
 
+
     public double getWalletBalance() { return walletBalance; }
 
     public void addBalance(double amount) {

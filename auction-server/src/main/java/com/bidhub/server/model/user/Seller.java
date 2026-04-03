@@ -14,6 +14,13 @@ public class Seller extends User {
         this.rating = 5.0; // Điểm mặc định khi mới tham gia
     }
 
+    // Constructor 3 tham số (Dùng khi người dùng mới đăng ký, chưa có tên cửa hàng)
+    public Seller(String username, String passwordHash, String email) {
+        // Dùng 'this' để gọi thẳng xuống Constructor 4 tham số bên dưới, truyền null cho storeName
+        this(username, passwordHash, email, null);
+    }
+
+
     public String getStoreName() { return storeName; }
     public double getRating() { return rating; }
 

@@ -32,3 +32,31 @@ CREATE TABLE IF NOT EXISTS items (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (seller_id) REFERENCES users(id)
     );
+-- Bảng Phiên đấu giá
+CREATE TABLE IF NOT EXISTS auctions (
+                                        id VARCHAR(36) PRIMARY KEY,
+    item_id VARCHAR(36) NOT NULL,
+    seller_id VARCHAR(36) NOT NULL,
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    current_highest_bid REAL,
+    current_winner_id VARCHAR(36),
+    total_bids INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (item_id) REFERENCES items(id),
+    FOREIGN KEY (seller_id) REFERENCES users(id)
+    );
+
+-- Bảng Lịch sử đặt giá (Lưu lại mọi lượt bấm giá của người dùng)
+CREATE TABLE IF NOT EXISTS bid_transactions (
+                                                id VARCHAR(36) PRIMARY KEY,
+    auction_id VARCHAR(36) NOT NULL,
+    bidder_id VARCHAR(36) NOT NULL,
+    amount REAL NOT NULL,
+    bid_time TIMESTAMP NOT NULL,
+    is_auto_bid BOOLEAN DEFAULT 0,
+    FOREIGN KEY (auction_id) REFERENCES auctions(id),
+    FOREIGN KEY (bidder_id) REFERENCES users(id)
+    );
