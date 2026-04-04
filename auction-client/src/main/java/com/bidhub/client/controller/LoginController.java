@@ -38,6 +38,7 @@ public class LoginController {
         // Xử lý giao diện
         if (res != null && res.isSuccess()) {
             System.out.println("✅ " + res.getMessage());
+            com.bidhub.client.core.UserSession.setCurrentUser(username);
             com.bidhub.client.core.SceneManager.getInstance().switchTo("AuctionListView.fxml");
         } else {
             lblError.setText(res != null ? res.getMessage() : "Lỗi kết nối");

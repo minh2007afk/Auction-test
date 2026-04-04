@@ -144,6 +144,54 @@ public class ClientHandler implements Runnable {
                 }
 
 
+
+                else if ("PLACE_BID".equals(request.getAction())) {
+                    try {
+                        // 1. Bóc tách dữ liệu Client gửi lên: [Tên_User, Tên_Sản_Phẩm, Số_Tiền]
+                        Object[] payload = (Object[]) request.getPayload();
+                        String username = (String) payload[0];
+                        String itemName = (String) payload[1];
+                        double bidAmount = Double.parseDouble(payload[2].toString());
+
+                        // 2. Nhờ DAO xử lý giao dịch
+                        com.bidhub.server.dao.AuctionDAO auctionDao = new com.bidhub.server.dao.AuctionDAO();
+                        String result = auctionDao.placeBid(username, itemName, bidAmount);
+
+                        // 3. Trả kết quả về
+                        if ("SUCCESS".equals(result)) {
+                            response = Response.success("Bạn đã dẫn đầu với mức giá " + String.format("%,.0f VNĐ", bidAmount) + "!", null);
+                        } else {
+                            response = Response.error(result); // Trả về câu báo lỗi cụ thể (Thiếu tiền, Giá thấp...)
+                        }
+                    } catch (Exception e) {
+                        response = Response.error("Sai định dạng gói tin đấu giá: " + e.getMessage());
+                    }
+                }
+
+
+                // ... (code cũ PLACE_BID) ...
+
+                else if ("ADD_ITEM".equals(request.getAction())) {
+                    try {
+                        Object[] payload = (Object[]) request.getPayload();
+                        String sellerName = (String) payload[0];
+                        String itemName = (String) payload[1];
+                        double startingPrice = Double.parseDouble(payload[2].toString());
+
+                        com.bidhub.server.dao.AuctionDAO auctionDao = new com.bidhub.server.dao.AuctionDAO();
+
+                        if (auctionDao.addAuctionItem(sellerName, itemName, startingPrice)) {
+                            response = Response.success("Đăng bán sản phẩm thành công!", null);
+                        } else {
+                            response = Response.error("Lỗi: Tên sản phẩm đã tồn tại hoặc hệ thống gặp sự cố!");
+                        }
+                    } catch (Exception e) {
+                        response = Response.error("Dữ liệu gửi lên không hợp lệ!");
+                    }
+                }
+
+                // ... (code cũ else Hành động không hợp lệ) ...
+
                 // ==========================================================
                 // CÁC HÀNH ĐỘNG KHÔNG HỢP LỆ
                 // ==========================================================

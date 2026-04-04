@@ -17,6 +17,11 @@
             <Label style="-fx-font-size: 22px; -fx-text-fill: white; -fx-font-weight: bold;" text="🏦 BidHub" />
 
             <Region HBox.hgrow="ALWAYS" />
+         <Button mnemonicParsing="false" onAction="#handleAddProduct" text="Đăng Bán" textFill="#962626d9">
+            <font>
+               <Font size="14.0" />
+            </font>
+         </Button>
          <Label fx:id="lblBalance" text="Số dư: 0 VNĐ" textFill="#f20d0d">
             <font>
                <Font size="17.0" />
@@ -35,9 +40,10 @@
 
             <TableView fx:id="tableAuctions" style="-fx-font-size: 14px;" VBox.vgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="colName" prefWidth="400" text="Sản Phẩm" />
-                    <TableColumn fx:id="colPrice" prefWidth="180" text="Giá Hiện Tại" />
-                    <TableColumn fx:id="colStatus" prefWidth="150" text="Trạng Thái" />
+                    <TableColumn fx:id="colName" prefWidth="279.0" text="Sản Phẩm" />
+                    <TableColumn fx:id="colPrice" prefWidth="199.0" text="Giá Hiện Tại" />
+                    <TableColumn fx:id="colStatus" prefWidth="146.0" text="Trạng Thái" />
+               <TableColumn fx:id="colTimeLeft" prefWidth="147.0" text="Thời gian còn lại" />
                 </columns>
 
                 <columnResizePolicy>
