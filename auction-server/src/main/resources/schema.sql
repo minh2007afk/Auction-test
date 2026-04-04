@@ -60,3 +60,13 @@ CREATE TABLE IF NOT EXISTS bid_transactions (
     FOREIGN KEY (auction_id) REFERENCES auctions(id),
     FOREIGN KEY (bidder_id) REFERENCES users(id)
     );
+-- Dữ liệu mẫu (Tự bỏ qua nếu đã tồn tại)
+INSERT OR IGNORE INTO users (id, username, password_hash, email, role) VALUES ('u_admin', 'admin', '123', 'admin@gmail.com', 'SELLER');
+
+INSERT OR IGNORE INTO items (id, name, description, starting_price) VALUES ('item_1', 'iPhone 15 Pro Max', 'Hàng VN/A', 25000000.0);
+INSERT OR IGNORE INTO items (id, name, description, starting_price) VALUES ('item_2', 'Laptop ThinkPad X1 Carbon', 'Core i7, 16GB RAM', 18500000.0);
+INSERT OR IGNORE INTO items (id, name, description, starting_price) VALUES ('item_3', 'Đồng hồ Rolex Submariner', 'Chính hãng', 150000000.0);
+
+INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('auc_1', 'item_1', 'u_admin', '2026-04-01', '2026-04-30', 'Đang diễn ra', 25500000.0);
+INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('auc_2', 'item_2', 'u_admin', '2026-04-05', '2026-04-20', 'Sắp bắt đầu', 18500000.0);
+INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('auc_3', 'item_3', 'u_admin', '2026-03-01', '2026-03-31', 'Đã kết thúc', 160000000.0);

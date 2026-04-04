@@ -35,22 +35,43 @@ public class ClientHandler implements Runnable {
                 Request request = (Request) in.readObject();
                 System.out.println("[Client " + clientIp + "] Yêu cầu: " + request.getAction());
 
-                Response response;
+                // Khởi tạo sẵn response bằng null để tránh lỗi compile
+                Response response = null;
 
-                // Xử lý logic
+                // ==========================================================
+                // XỬ LÝ LOGIC ĐĂNG NHẬP
+                // ==========================================================
                 if ("LOGIN".equals(request.getAction())) {
-                    response = Response.success("Đăng nhập thành công (Java thuần)!", request.getPayload());
+                    try {
+                        String[] loginData = (String[]) request.getPayload();
+                        String username = loginData[0];
+                        String password = loginData[1];
+
+                        com.bidhub.server.dao.UserDAO userDao = new com.bidhub.server.dao.UserDAO();
+                        com.bidhub.server.model.user.User loggedInUser = userDao.authenticate(username, password);
+
+                        if (loggedInUser != null) {
+                            String[] userInfo = {loggedInUser.getUsername(), loggedInUser.getEmail()};
+                            response = Response.success("Đăng nhập thành công!", userInfo);
+                        } else {
+                            response = Response.error("Sai tên đăng nhập hoặc mật khẩu!");
+                        }
+                    } catch (Exception e) {
+                        response = Response.error("Lỗi dữ liệu đăng nhập: " + e.getMessage());
+                    }
                 }
+
+                // ==========================================================
+                // XỬ LÝ LOGIC ĐĂNG KÝ
+                // ==========================================================
                 else if ("REGISTER".equals(request.getAction())) {
                     try {
-                        // 1. Lấy mảng dữ liệu Client gửi lên
                         String[] data = (String[]) request.getPayload();
                         String username = data[0];
                         String password = data[1];
                         String email = data[2];
                         String role = data[3];
 
-                        // 2. Tạo đối tượng User tương ứng
                         com.bidhub.server.model.user.User newUser;
                         if ("SELLER".equals(role)) {
                             newUser = new com.bidhub.server.model.user.Seller(username, password, email);
@@ -58,11 +79,9 @@ public class ClientHandler implements Runnable {
                             newUser = new com.bidhub.server.model.user.Bidder(username, password, email);
                         }
 
-                        // 3. Gọi DAO để lưu vào Database SQLite
                         com.bidhub.server.dao.UserDAO userDao = new com.bidhub.server.dao.UserDAO();
                         userDao.save(newUser);
 
-                        // 4. Báo thành công về cho Client
                         response = Response.success("Đăng ký thành công! Hãy đăng nhập.", null);
 
                     } catch (Exception e) {
@@ -70,13 +89,73 @@ public class ClientHandler implements Runnable {
                         response = Response.error("Lỗi khi lưu vào Database: " + e.getMessage());
                     }
                 }
-                else {
-                    response = Response.error("Hành động không hợp lệ");
+                // ... code cũ (if LOGIN, else if REGISTER) ...
+
+                else if ("GET_AUCTIONS".equals(request.getAction())) {
+                    try {
+                        com.bidhub.server.dao.AuctionDAO auctionDao = new com.bidhub.server.dao.AuctionDAO();
+                        // Lấy danh sách từ Database
+                        java.util.List<String[]> auctionList = auctionDao.getAuctionListForTable();
+
+                        // Đóng gói gửi về cho Client
+                        response = Response.success("Tải dữ liệu thành công", auctionList);
+                    } catch (Exception e) {
+                        response = Response.error("Lỗi khi tải danh sách: " + e.getMessage());
+                    }
+                }
+                // ... (code cũ GET_AUCTIONS) ...
+
+                else if ("TOPUP".equals(request.getAction())) {
+                    try {
+                        // 1. Lấy thông tin Client gửi lên (Mảng gồm: [tên_tài_khoản, số_tiền])
+                        Object[] payload = (Object[]) request.getPayload();
+                        String username = (String) payload[0];
+                        double amount = Double.parseDouble(payload[1].toString());
+
+                        // 2. Gọi DAO để cập nhật Database
+                        com.bidhub.server.dao.UserDAO userDao = new com.bidhub.server.dao.UserDAO();
+                        boolean success = userDao.updateBalance(username, amount);
+
+                        // 3. Báo cáo kết quả về Client
+                        if (success) {
+                            response = Response.success("Nạp thành công " + String.format("%,.0f VNĐ", amount), null);
+                        } else {
+                            response = Response.error("Lỗi: Tài khoản không tồn tại hoặc DB bị khóa!");
+                        }
+                    } catch (Exception e) {
+                        response = Response.error("Sai định dạng gói tin nạp tiền: " + e.getMessage());
+                    }
                 }
 
-                // Gửi Object về cho Client
-                out.writeObject(response);
-                out.flush();
+                // ... (code cũ TOPUP) ...
+
+                else if ("GET_BALANCE".equals(request.getAction())) {
+                    try {
+                        String username = (String) request.getPayload(); // Client chỉ cần gửi tên tài khoản lên
+
+                        com.bidhub.server.dao.UserDAO userDao = new com.bidhub.server.dao.UserDAO();
+                        double balance = userDao.getBalance(username);
+
+                        // Đóng gói số tiền gửi về
+                        response = Response.success("OK", balance);
+                    } catch (Exception e) {
+                        response = Response.error("Lỗi lấy số dư: " + e.getMessage());
+                    }
+                }
+
+
+                // ==========================================================
+                // CÁC HÀNH ĐỘNG KHÔNG HỢP LỆ
+                // ==========================================================
+                else {
+                    response = Response.error("Hành động không hợp lệ: " + request.getAction());
+                }
+
+                // Gửi trả kết quả về cho Client
+                if (response != null) {
+                    out.writeObject(response);
+                    out.flush();
+                }
             }
 
         } catch (EOFException e) {

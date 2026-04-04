@@ -1,34 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.bidhub.client.controller.AuctionListController"
-            styleClass="main-container" prefWidth="800" prefHeight="600">
+<BorderPane prefHeight="600" prefWidth="800" styleClass="main-container" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bidhub.client.controller.AuctionListController">
 
     <top>
         <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15px 20px;">
-            <Label text="🏦 BidHub" style="-fx-font-size: 22px; -fx-text-fill: white; -fx-font-weight: bold;"/>
+            <Label style="-fx-font-size: 22px; -fx-text-fill: white; -fx-font-weight: bold;" text="🏦 BidHub" />
 
             <Region HBox.hgrow="ALWAYS" />
+         <Label fx:id="lblBalance" text="Số dư: 0 VNĐ" textFill="#f20d0d">
+            <font>
+               <Font size="17.0" />
+            </font>
+         </Label>
+         <Button mnemonicParsing="false" onAction="#handleTopUp" text="Nạp tiền" />
 
-            <Button text="Đăng xuất" onAction="#handleLogout"
-                    style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;"/>
+            <Button onAction="#handleLogout" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;" text="Đăng xuất" />
         </HBox>
     </top>
 
     <center>
         <VBox spacing="15" style="-fx-padding: 20px;">
-            <Label text="Sàn Đấu Giá Trực Tuyến" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;"/>
-            <Label text="Nhấn đúp vào một sản phẩm để xem chi tiết hoặc đặt giá" style="-fx-text-fill: #7f8c8d;"/>
+            <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;" text="Sàn Đấu Giá Trực Tuyến" />
+            <Label style="-fx-text-fill: #7f8c8d;" text="Nhấn đúp vào một sản phẩm để xem chi tiết hoặc đặt giá" />
 
-            <TableView fx:id="tableAuctions" VBox.vgrow="ALWAYS" style="-fx-font-size: 14px;">
+            <TableView fx:id="tableAuctions" style="-fx-font-size: 14px;" VBox.vgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="colName" text="Sản Phẩm" prefWidth="400" />
-                    <TableColumn fx:id="colPrice" text="Giá Hiện Tại" prefWidth="180" />
-                    <TableColumn fx:id="colStatus" text="Trạng Thái" prefWidth="150" />
+                    <TableColumn fx:id="colName" prefWidth="400" text="Sản Phẩm" />
+                    <TableColumn fx:id="colPrice" prefWidth="180" text="Giá Hiện Tại" />
+                    <TableColumn fx:id="colStatus" prefWidth="150" text="Trạng Thái" />
                 </columns>
 
                 <columnResizePolicy>
