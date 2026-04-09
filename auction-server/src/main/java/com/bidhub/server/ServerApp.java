@@ -17,6 +17,24 @@ public class ServerApp {
         MigrationRunner.runMigrations();
         System.out.println("BidHub Server đã sẵn sàng Database!");
 
+        // =========================================================
+        // BÁC BẢO VỆ: CHẠY NGẦM KIỂM TRA HẾT HẠN MỖI 5 GIÂY
+        // =========================================================
+        Thread expirationChecker = new Thread(() -> {
+            com.bidhub.server.dao.AuctionDAO dao = new com.bidhub.server.dao.AuctionDAO();
+            while (true) {
+                try {
+                    dao.closeExpiredAuctions();
+                    Thread.sleep(5000); // Ngủ 5 giây rồi dậy đi tuần tiếp
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        expirationChecker.setDaemon(true); // Đảm bảo thread tự chết khi tắt Server
+        expirationChecker.start();
+        // =========================================================
+
         // 2. Mở cổng Socket Lắng nghe
         try (ServerSocket serverSocket = new ServerSocket(DEFAULT_PORT)) {
             System.out.println("🚀 Đang lắng nghe Client kết nối ở cổng " + DEFAULT_PORT + "...");

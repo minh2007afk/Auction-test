@@ -89,8 +89,10 @@ public class ClientHandler implements Runnable {
                         response = Response.error("Lỗi khi lưu vào Database: " + e.getMessage());
                     }
                 }
-                // ... code cũ (if LOGIN, else if REGISTER) ...
 
+                // ==========================================================
+                // LẤY DANH SÁCH SẢN PHẨM
+                // ==========================================================
                 else if ("GET_AUCTIONS".equals(request.getAction())) {
                     try {
                         com.bidhub.server.dao.AuctionDAO auctionDao = new com.bidhub.server.dao.AuctionDAO();
@@ -103,8 +105,10 @@ public class ClientHandler implements Runnable {
                         response = Response.error("Lỗi khi tải danh sách: " + e.getMessage());
                     }
                 }
-                // ... (code cũ GET_AUCTIONS) ...
 
+                // ==========================================================
+                // NẠP TIỀN
+                // ==========================================================
                 else if ("TOPUP".equals(request.getAction())) {
                     try {
                         // 1. Lấy thông tin Client gửi lên (Mảng gồm: [tên_tài_khoản, số_tiền])
@@ -127,8 +131,9 @@ public class ClientHandler implements Runnable {
                     }
                 }
 
-                // ... (code cũ TOPUP) ...
-
+                // ==========================================================
+                // LẤY SỐ DƯ
+                // ==========================================================
                 else if ("GET_BALANCE".equals(request.getAction())) {
                     try {
                         String username = (String) request.getPayload(); // Client chỉ cần gửi tên tài khoản lên
@@ -143,8 +148,9 @@ public class ClientHandler implements Runnable {
                     }
                 }
 
-
-
+                // ==========================================================
+                // ĐẶT GIÁ (ĐẤU GIÁ)
+                // ==========================================================
                 else if ("PLACE_BID".equals(request.getAction())) {
                     try {
                         // 1. Bóc tách dữ liệu Client gửi lên: [Tên_User, Tên_Sản_Phẩm, Số_Tiền]
@@ -168,19 +174,21 @@ public class ClientHandler implements Runnable {
                     }
                 }
 
-
-                // ... (code cũ PLACE_BID) ...
-
+                // ==========================================================
+                // ĐĂNG BÁN SẢN PHẨM MỚI (ĐÃ FIX LỖI THIẾU NGÀY KẾT THÚC)
+                // ==========================================================
                 else if ("ADD_ITEM".equals(request.getAction())) {
                     try {
                         Object[] payload = (Object[]) request.getPayload();
                         String sellerName = (String) payload[0];
                         String itemName = (String) payload[1];
                         double startingPrice = Double.parseDouble(payload[2].toString());
+                        String endTimeStr = (String) payload[3]; // Lấy thêm chuỗi ngày kết thúc
 
                         com.bidhub.server.dao.AuctionDAO auctionDao = new com.bidhub.server.dao.AuctionDAO();
 
-                        if (auctionDao.addAuctionItem(sellerName, itemName, startingPrice)) {
+                        // Truyền đủ 4 biến vào hàm addAuctionItem
+                        if (auctionDao.addAuctionItem(sellerName, itemName, startingPrice, endTimeStr)) {
                             response = Response.success("Đăng bán sản phẩm thành công!", null);
                         } else {
                             response = Response.error("Lỗi: Tên sản phẩm đã tồn tại hoặc hệ thống gặp sự cố!");
@@ -189,8 +197,6 @@ public class ClientHandler implements Runnable {
                         response = Response.error("Dữ liệu gửi lên không hợp lệ!");
                     }
                 }
-
-                // ... (code cũ else Hành động không hợp lệ) ...
 
                 // ==========================================================
                 // CÁC HÀNH ĐỘNG KHÔNG HỢP LỆ

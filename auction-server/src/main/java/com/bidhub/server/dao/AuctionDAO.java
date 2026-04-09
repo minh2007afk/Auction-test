@@ -215,4 +215,29 @@ public class AuctionDAO implements DAO<Auction, String> {
             return false;
         }
     }
+
+    /**
+     * Tự động quét và chốt đơn các phiên đấu giá đã hết hạn
+     */
+    public void closeExpiredAuctions() {
+        // Lấy thời gian hiện tại theo chuẩn YYYY-MM-DD
+        String now = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        // SQLite lưu ngày tháng dạng chuỗi, ta dùng phép so sánh chuỗi < ngày hiện tại
+        // Đổi thành "Đã kết thúc" nếu ngày kết thúc (end_time) nằm trong quá khứ so với hôm nay
+        String sql = "UPDATE auctions SET status = 'Đã kết thúc' WHERE status = 'Đang diễn ra' AND end_time < ?";
+
+        try (java.sql.Connection conn = com.bidhub.server.database.DatabaseManager.getInstance().getConnection();
+             java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, now);
+            int updatedCount = pstmt.executeUpdate();
+
+            if (updatedCount > 0) {
+                System.out.println("[HỆ THỐNG] Đã tự động chốt đơn " + updatedCount + " phiên đấu giá hết hạn!");
+            }
+        } catch (Exception e) {
+            System.err.println("[Lỗi chốt đơn] " + e.getMessage());
+        }
+    }
 }

@@ -49,12 +49,9 @@ public class AuctionListController {
                     for (AuctionItem item : tableAuctions.getItems()) {
                         item.updateTimeLeft();
                     }
-                    tableAuctions.refresh(); // Ép bảng vẽ lại con số giây đang nhảy
 
-                    // Cứ 5 giây thì hỏi Server 1 lần để đồng bộ giá (tránh nặng mạng)
-                    if (LocalDateTime.now().getSecond() % 5 == 0) {
-                        refreshTable();
-                    }
+                    // Gọi luôn refreshTable() mỗi 1 giây để ép bảng cập nhật giá siêu tốc
+                    refreshTable();
                 })
         );
         clock.setCycleCount(javafx.animation.Animation.INDEFINITE);
@@ -122,7 +119,7 @@ public class AuctionListController {
             }
 
             javafx.application.Platform.runLater(() -> {
-                // Lưu lại vị trí cuộn để không bị giật mình khi refresh
+                // Lưu lại vị trí cuộn để không bị giật mình khi refresh 1s/lần
                 int selectedIndex = tableAuctions.getSelectionModel().getSelectedIndex();
                 tableAuctions.setItems(tableData);
                 tableAuctions.getSelectionModel().select(selectedIndex);
@@ -254,7 +251,8 @@ public class AuctionListController {
 
     @FXML
     private void handleAddProduct() {
-        javafx.scene.control.Dialog<javafx.util.Pair<String, String>> dialog = new javafx.scene.control.Dialog<>();
+        // NÂNG CẤP: Dùng mảng Object[] để chứa được Tên, Giá và Lịch Ngày kết thúc
+        javafx.scene.control.Dialog<Object[]> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle("Đăng Bán Sản Phẩm");
         dialog.setHeaderText("Nhập thông tin món hàng bạn muốn bán");
 
@@ -266,37 +264,53 @@ public class AuctionListController {
 
         javafx.scene.control.TextField txtName = new javafx.scene.control.TextField();
         txtName.setPromptText("Tên món hàng (VD: Macbook Pro)");
+
         javafx.scene.control.TextField txtPrice = new javafx.scene.control.TextField();
         txtPrice.setPromptText("Giá khởi điểm (VNĐ)");
+
+        // THÊM LỊCH CHỌN NGÀY KẾT THÚC
+        javafx.scene.control.DatePicker dpEndDate = new javafx.scene.control.DatePicker();
+        dpEndDate.setPromptText("Chọn ngày kết thúc");
+        dpEndDate.setValue(java.time.LocalDate.now().plusDays(1)); // Mặc định là ngày mai
 
         grid.add(new javafx.scene.control.Label("Tên sản phẩm:"), 0, 0);
         grid.add(txtName, 1, 0);
         grid.add(new javafx.scene.control.Label("Giá khởi điểm:"), 0, 1);
         grid.add(txtPrice, 1, 1);
+        grid.add(new javafx.scene.control.Label("Ngày kết thúc:"), 0, 2);
+        grid.add(dpEndDate, 1, 2);
 
         dialog.getDialogPane().setContent(grid);
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == btnOk) {
-                return new javafx.util.Pair<>(txtName.getText(), txtPrice.getText());
+                return new Object[]{txtName.getText(), txtPrice.getText(), dpEndDate.getValue()};
             }
             return null;
         });
 
         dialog.showAndWait().ifPresent(result -> {
-            String name = result.getKey().trim();
-            String priceStr = result.getValue().trim();
+            String name = ((String) result[0]).trim();
+            String priceStr = ((String) result[1]).trim();
+            java.time.LocalDate endDate = (java.time.LocalDate) result[2];
 
-            if (name.isEmpty() || priceStr.isEmpty()) {
+            if (name.isEmpty() || priceStr.isEmpty() || endDate == null) {
                 showError("Vui lòng điền đầy đủ thông tin!");
+                return;
+            }
+
+            if (endDate.isBefore(java.time.LocalDate.now())) {
+                showError("Ngày kết thúc không được nằm trong quá khứ!");
                 return;
             }
 
             try {
                 double price = Double.parseDouble(priceStr);
                 String sellerName = com.bidhub.client.core.UserSession.getCurrentUser();
+                String endTimeStr = endDate.toString(); // Chuyển ngày thành chuỗi YYYY-MM-DD để gửi lên Server
 
-                Object[] payload = {sellerName, name, price};
+                // Đóng gói đủ 4 tham số gửi lên
+                Object[] payload = {sellerName, name, price, endTimeStr};
                 com.bidhub.network.Request req = new com.bidhub.network.Request("ADD_ITEM", payload);
                 com.bidhub.network.Response res = com.bidhub.client.network.NetworkManager.getInstance().sendRequest(req);
 
