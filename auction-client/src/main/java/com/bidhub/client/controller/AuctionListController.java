@@ -52,14 +52,14 @@ public class AuctionListController {
         clock.play();
     }
 
-    // NÂNG CẤP: Lưu thêm Mô tả và Ảnh vào Model
+    // NÂNG CẤP: Lưu thêm Mô tả và Ảnh vào Model, xử lý Giờ Phút Giây
     public static class AuctionItem {
         private final String name;
         private final String price;
         private final String status;
         private final String endTimeStr;
-        private final String description; // Cột mới
-        private final String imagePath;   // Cột mới
+        private final String description;
+        private final String imagePath;
         private String timeLeft;
 
         public AuctionItem(String name, String price, String status, String endTimeStr, String description, String imagePath) {
@@ -74,27 +74,43 @@ public class AuctionListController {
 
         public void updateTimeLeft() {
             try {
-                if (endTimeStr == null || endTimeStr.isEmpty()) {
+                if (endTimeStr == null || endTimeStr.isEmpty() || endTimeStr.equals("null")) {
                     this.timeLeft = "--:--:--";
                     return;
                 }
 
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                LocalDateTime end = java.time.LocalDate.parse(endTimeStr, formatter).atStartOfDay();
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime end;
+                // Thuật toán thông minh: Nhận diện cả 2 loại chuỗi thời gian (cũ và mới)
+                if (endTimeStr.length() > 10) {
+                    // Dữ liệu mới có đầy đủ Giờ Phút Giây (VD: 2026-04-30 20:15:00)
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                    end = LocalDateTime.parse(endTimeStr, formatter);
+                } else {
+                    // Dữ liệu cũ chỉ có Ngày (VD: 2026-04-30) - Lùi về 00:00:00 đầu ngày
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                    end = java.time.LocalDate.parse(endTimeStr, formatter).atStartOfDay();
+                }
 
+                LocalDateTime now = LocalDateTime.now();
                 Duration duration = Duration.between(now, end);
-                if (duration.isNegative()) {
+
+                if (duration.isNegative() || duration.isZero()) {
                     this.timeLeft = "Đã kết thúc";
                 } else {
                     long days = duration.toDays();
                     long hours = duration.toHours() % 24;
                     long minutes = duration.toMinutes() % 60;
                     long seconds = duration.getSeconds() % 60;
-                    this.timeLeft = String.format("%dd %02d:%02d:%02d", days, hours, minutes, seconds);
+
+                    if (days > 0) {
+                        this.timeLeft = String.format("%dd %02d:%02d:%02d", days, hours, minutes, seconds);
+                    } else {
+                        // Ẩn số ngày nếu chỉ còn dưới 24h
+                        this.timeLeft = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+                    }
                 }
             } catch (Exception e) {
-                this.timeLeft = "Vô thời hạn";
+                this.timeLeft = "Lỗi hiển thị";
             }
         }
 
@@ -115,7 +131,6 @@ public class AuctionListController {
             ObservableList<AuctionItem> tableData = FXCollections.observableArrayList();
 
             for (String[] row : dataList) {
-                // Nhận thêm index 4 (description) và index 5 (image_path)
                 String desc = (row.length > 4 && row[4] != null) ? row[4] : "Chưa có mô tả";
                 String img = (row.length > 5 && row[5] != null) ? row[5] : "no_image.png";
                 tableData.add(new AuctionItem(row[0], row[1], row[2], row[3], desc, img));
@@ -137,7 +152,6 @@ public class AuctionListController {
 
     @FXML
     private void handleTopUp() {
-        // ... Code QR như cũ ...
         javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
         dialog.setTitle("Nạp tiền vào ví");
         dialog.setHeaderText("Cổng thanh toán BidHub");
@@ -191,16 +205,12 @@ public class AuctionListController {
         }
     }
 
-    // =========================================================
-    // NÂNG CẤP: GIAO DIỆN ĐẤU GIÁ (CÓ ẢNH VÀ MÔ TẢ)
-    // =========================================================
     private void handleBidding(AuctionItem item) {
         if (!"Đang diễn ra".equals(item.getStatus())) {
             showError("Sản phẩm này hiện không trong thời gian đấu giá!");
             return;
         }
 
-        // Tạo Form tùy chỉnh
         javafx.scene.control.Dialog<String> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle("Chi tiết sản phẩm & Đặt giá");
         dialog.setHeaderText("Đang đấu giá: " + item.getName());
@@ -211,14 +221,12 @@ public class AuctionListController {
         javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(10);
         vbox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
-        // Khu vực hiển thị Ảnh
         javafx.scene.image.ImageView imgView = new javafx.scene.image.ImageView();
         imgView.setFitWidth(300);
         imgView.setFitHeight(200);
         imgView.setPreserveRatio(true);
         String imgPath = item.getImagePath();
 
-        // Vì Client và Server đang chạy chung trên 1 máy, ta có thể truy xuất trực tiếp đường dẫn file
         if (imgPath != null && !imgPath.equals("no_image.png") && !imgPath.isEmpty()) {
             try {
                 imgView.setImage(new javafx.scene.image.Image("file:" + imgPath));
@@ -227,7 +235,6 @@ public class AuctionListController {
             }
         }
 
-        // Khu vực hiển thị Mô tả & Giá
         javafx.scene.control.Label lblDesc = new javafx.scene.control.Label("Mô tả: " + item.getDescription());
         lblDesc.setWrapText(true);
         lblDesc.setMaxWidth(300);
@@ -235,7 +242,6 @@ public class AuctionListController {
         javafx.scene.control.Label lblPrice = new javafx.scene.control.Label("Giá cao nhất hiện tại: " + item.getPrice());
         lblPrice.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: red;");
 
-        // Ô nhập tiền đấu giá
         javafx.scene.control.TextField txtBid = new javafx.scene.control.TextField();
         txtBid.setPromptText("Nhập mức giá bạn muốn trả (VNĐ)");
 
@@ -249,7 +255,6 @@ public class AuctionListController {
             return null;
         });
 
-        // Xử lý gửi giá lên Server
         dialog.showAndWait().ifPresent(bidAmountStr -> {
             try {
                 double bidAmount = Double.parseDouble(bidAmountStr);
@@ -278,11 +283,14 @@ public class AuctionListController {
         });
     }
 
+    // =========================================================
+    // NÂNG CẤP: GIAO DIỆN CHỌN NGÀY VÀ GIỜ/PHÚT
+    // =========================================================
     @FXML
     private void handleAddProduct() {
         javafx.scene.control.Dialog<Object[]> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle("Đăng Bán Sản Phẩm");
-        dialog.setHeaderText("Nhập thông tin và hình ảnh món hàng");
+        dialog.setHeaderText("Nhập thông tin, hình ảnh và thời gian Đấu giá");
 
         javafx.scene.control.ButtonType btnOk = new javafx.scene.control.ButtonType("Đăng Bán", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(btnOk, javafx.scene.control.ButtonType.CANCEL);
@@ -297,8 +305,25 @@ public class AuctionListController {
         javafx.scene.control.TextField txtPrice = new javafx.scene.control.TextField();
         txtPrice.setPromptText("Giá khởi điểm (VNĐ)");
 
+        // 1. Lịch chọn ngày
         javafx.scene.control.DatePicker dpEndDate = new javafx.scene.control.DatePicker();
         dpEndDate.setValue(java.time.LocalDate.now().plusDays(1));
+        dpEndDate.setPrefWidth(120);
+
+        // 2. Dropdown chọn Giờ (00 -> 23)
+        javafx.scene.control.ComboBox<String> cbHour = new javafx.scene.control.ComboBox<>();
+        for (int i = 0; i <= 23; i++) cbHour.getItems().add(String.format("%02d", i));
+        cbHour.setValue("20"); // Mặc định 20h tối
+
+        // 3. Dropdown chọn Phút (00, 05, 10... 55)
+        javafx.scene.control.ComboBox<String> cbMinute = new javafx.scene.control.ComboBox<>();
+        for (int i = 0; i < 60; i += 5) cbMinute.getItems().add(String.format("%02d", i));
+        cbMinute.setValue("00");
+
+        // Gộp Ngày + Giờ + Phút vào 1 hàng cho gọn
+        javafx.scene.layout.HBox timeBox = new javafx.scene.layout.HBox(5);
+        timeBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        timeBox.getChildren().addAll(dpEndDate, new javafx.scene.control.Label(" Lúc: "), cbHour, new javafx.scene.control.Label(":"), cbMinute);
 
         javafx.scene.control.TextArea txtDesc = new javafx.scene.control.TextArea();
         txtDesc.setPromptText("Mô tả chi tiết tình trạng, xuất xứ, bảo hành...");
@@ -327,8 +352,11 @@ public class AuctionListController {
         grid.add(txtName, 1, 0);
         grid.add(new javafx.scene.control.Label("Giá khởi điểm:"), 0, 1);
         grid.add(txtPrice, 1, 1);
-        grid.add(new javafx.scene.control.Label("Ngày kết thúc:"), 0, 2);
-        grid.add(dpEndDate, 1, 2);
+
+        // Gắn Box thời gian vào dòng thứ 3
+        grid.add(new javafx.scene.control.Label("Kết thúc lúc:"), 0, 2);
+        grid.add(timeBox, 1, 2);
+
         grid.add(new javafx.scene.control.Label("Mô tả chi tiết:"), 0, 3);
         grid.add(txtDesc, 1, 3);
         grid.add(new javafx.scene.control.Label("Ảnh sản phẩm:"), 0, 4);
@@ -340,7 +368,12 @@ public class AuctionListController {
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == btnOk) {
-                return new Object[]{txtName.getText(), txtPrice.getText(), dpEndDate.getValue(), txtDesc.getText(), selectedFile[0]};
+                // Ép kiểu Date + Hour + Minute thành chuỗi "yyyy-MM-dd HH:mm:00" gửi lên DB
+                String dateStr = dpEndDate.getValue().toString();
+                String timeStr = cbHour.getValue() + ":" + cbMinute.getValue() + ":00";
+                String finalEndDateTime = dateStr + " " + timeStr;
+
+                return new Object[]{txtName.getText(), txtPrice.getText(), finalEndDateTime, txtDesc.getText(), selectedFile[0]};
             }
             return null;
         });
@@ -348,24 +381,31 @@ public class AuctionListController {
         dialog.showAndWait().ifPresent(result -> {
             String name = ((String) result[0]).trim();
             String priceStr = ((String) result[1]).trim();
-            java.time.LocalDate endDate = (java.time.LocalDate) result[2];
+            String endTimeStr = (String) result[2]; // Nhận chuỗi thời gian hoàn chỉnh
             String description = ((String) result[3]).trim();
             java.io.File imgFile = (java.io.File) result[4];
 
-            if (name.isEmpty() || priceStr.isEmpty() || endDate == null) {
+            if (name.isEmpty() || priceStr.isEmpty() || endTimeStr.isEmpty()) {
                 showError("Vui lòng điền đủ Tên, Giá và Ngày kết thúc!");
                 return;
             }
 
-            if (endDate.isBefore(java.time.LocalDate.now())) {
-                showError("Ngày kết thúc không được nằm trong quá khứ!");
+            // Kiểm tra thời gian kết thúc phải lớn hơn thời gian hiện tại
+            try {
+                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                LocalDateTime endDateTime = LocalDateTime.parse(endTimeStr, fmt);
+                if (endDateTime.isBefore(LocalDateTime.now())) {
+                    showError("Thời gian kết thúc phải ở trong tương lai!");
+                    return;
+                }
+            } catch (Exception ex) {
+                showError("Lỗi định dạng thời gian!");
                 return;
             }
 
             try {
                 double price = Double.parseDouble(priceStr);
                 String sellerName = com.bidhub.client.core.UserSession.getCurrentUser();
-                String endTimeStr = endDate.toString();
 
                 byte[] imageBytes = new byte[0];
                 String extension = "";

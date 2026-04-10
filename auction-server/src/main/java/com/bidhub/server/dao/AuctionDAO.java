@@ -69,10 +69,11 @@ public class AuctionDAO implements DAO<Auction, String> {
             stmt.execute("INSERT OR IGNORE INTO items (id, name, starting_price, seller_id, item_type, description, image_path) VALUES ('it_1', 'iPhone 15 Pro Max', 25000000.0, 'admin', 'Điện thoại', 'Hàng mới nguyên seal 100%', 'no_image.png')");
             stmt.execute("INSERT OR IGNORE INTO items (id, name, starting_price, seller_id, item_type, description, image_path) VALUES ('it_2', 'Đồng hồ Rolex Submariner', 150000000.0, 'admin', 'Thời trang', 'Đồng hồ cơ Thụy Sĩ chính hãng', 'no_image.png')");
 
-            stmt.execute("INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('au_1', 'it_1', 'admin', '2026-04-01', '2026-05-30', 'Đang diễn ra', 25000000.0)");
-            stmt.execute("INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('au_2', 'it_2', 'admin', '2026-04-05', '2026-06-20', 'Sắp bắt đầu', 150000000.0)");
+            // NÂNG CẤP: Dữ liệu mẫu thêm phần giờ phút giây (HH:mm:ss) cho chuẩn form
+            stmt.execute("INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('au_1', 'it_1', 'admin', '2026-04-01 08:00:00', '2026-05-30 20:00:00', 'Đang diễn ra', 25000000.0)");
+            stmt.execute("INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('au_2', 'it_2', 'admin', '2026-04-05 09:00:00', '2026-06-20 22:30:00', 'Sắp bắt đầu', 150000000.0)");
 
-            // NÂNG CẤP LỆNH SQL: Lấy cả description và image_path
+            // Lấy cả description và image_path
             String sql = "SELECT i.name, a.current_highest_bid, a.status, a.end_time, i.description, i.image_path FROM auctions a JOIN items i ON a.item_id = i.id";
             try (java.sql.ResultSet rs = stmt.executeQuery(sql)) {
                 while (rs.next()) {
@@ -81,8 +82,8 @@ public class AuctionDAO implements DAO<Auction, String> {
                             String.format("%,.0f VNĐ", rs.getDouble("current_highest_bid")),
                             rs.getString("status"),
                             rs.getString("end_time"),
-                            rs.getString("description"), // Dữ liệu thứ 5
-                            rs.getString("image_path")   // Dữ liệu thứ 6
+                            rs.getString("description"),
+                            rs.getString("image_path")
                     });
                 }
             }
@@ -192,7 +193,7 @@ public class AuctionDAO implements DAO<Auction, String> {
                 }
 
                 String insertAuction = "INSERT INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) " +
-                        "VALUES (?, ?, ?, date('now'), ?, 'Đang diễn ra', ?)";
+                        "VALUES (?, ?, ?, datetime('now', 'localtime'), ?, 'Đang diễn ra', ?)";
                 try (java.sql.PreparedStatement ps = conn.prepareStatement(insertAuction)) {
                     ps.setString(1, auctionId);
                     ps.setString(2, itemId);
@@ -215,13 +216,21 @@ public class AuctionDAO implements DAO<Auction, String> {
         }
     }
 
+    /**
+     * NÂNG CẤP: Chốt đơn chính xác đến từng phút, giây (yyyy-MM-dd HH:mm:ss)
+     */
     public void closeExpiredAuctions() {
-        String now = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        // Lấy thời gian hiện tại chuẩn yyyy-MM-dd HH:mm:ss thay vì chỉ lấy ngày
+        String now = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
         String sql = "UPDATE auctions SET status = 'Đã kết thúc' WHERE status = 'Đang diễn ra' AND end_time < ?";
+
         try (java.sql.Connection conn = com.bidhub.server.database.DatabaseManager.getInstance().getConnection();
              java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
             pstmt.setString(1, now);
             int updatedCount = pstmt.executeUpdate();
+
             if (updatedCount > 0) {
                 System.out.println("[HỆ THỐNG] Đã tự động chốt đơn " + updatedCount + " phiên đấu giá hết hạn!");
             }
