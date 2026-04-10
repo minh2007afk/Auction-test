@@ -175,7 +175,7 @@ public class ClientHandler implements Runnable {
                 }
 
                 // ==========================================================
-                // ĐĂNG BÁN SẢN PHẨM MỚI (ĐÃ FIX LỖI THIẾU NGÀY KẾT THÚC)
+                // ĐĂNG BÁN SẢN PHẨM MỚI (HỖ TRỢ LƯU ẢNH VÀ MÔ TẢ)
                 // ==========================================================
                 else if ("ADD_ITEM".equals(request.getAction())) {
                     try {
@@ -183,17 +183,43 @@ public class ClientHandler implements Runnable {
                         String sellerName = (String) payload[0];
                         String itemName = (String) payload[1];
                         double startingPrice = Double.parseDouble(payload[2].toString());
-                        String endTimeStr = (String) payload[3]; // Lấy thêm chuỗi ngày kết thúc
+                        String endTimeStr = (String) payload[3];
+                        String description = (String) payload[4]; // Nhận mô tả
+                        byte[] imageBytes = (byte[]) payload[5];  // Nhận hạt Byte của ảnh
+                        String fileExtension = (String) payload[6]; // Nhận đuôi file (.png, .jpg)
+
+                        // Mặc định nếu người dùng không chọn ảnh
+                        String imagePath = "no_image.png";
+
+                        // Nếu có dữ liệu ảnh truyền lên
+                        if (imageBytes != null && imageBytes.length > 0) {
+                            // Tạo thư mục uploads trên Server (Nằm ở gốc dự án)
+                            java.io.File uploadDir = new java.io.File("uploads");
+                            if (!uploadDir.exists()) {
+                                uploadDir.mkdir();
+                            }
+
+                            // Đặt tên file bằng mã ngẫu nhiên UUID để không bao giờ bị trùng
+                            String fileName = java.util.UUID.randomUUID().toString() + fileExtension;
+                            java.io.File savedFile = new java.io.File(uploadDir, fileName);
+
+                            // Ghi từ mảng Byte ra thành 1 file ảnh thật
+                            java.nio.file.Files.write(savedFile.toPath(), imageBytes);
+
+                            // Lấy đường dẫn lưu vào Database
+                            imagePath = savedFile.getPath();
+                        }
 
                         com.bidhub.server.dao.AuctionDAO auctionDao = new com.bidhub.server.dao.AuctionDAO();
 
-                        // Truyền đủ 4 biến vào hàm addAuctionItem
-                        if (auctionDao.addAuctionItem(sellerName, itemName, startingPrice, endTimeStr)) {
+                        // Gọi DAO truyền đủ 6 thông tin
+                        if (auctionDao.addAuctionItem(sellerName, itemName, startingPrice, endTimeStr, description, imagePath)) {
                             response = Response.success("Đăng bán sản phẩm thành công!", null);
                         } else {
                             response = Response.error("Lỗi: Tên sản phẩm đã tồn tại hoặc hệ thống gặp sự cố!");
                         }
                     } catch (Exception e) {
+                        e.printStackTrace();
                         response = Response.error("Dữ liệu gửi lên không hợp lệ!");
                     }
                 }

@@ -10,9 +10,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Class chuyên thao tác với bảng `auctions` trong Database.
- */
 public class AuctionDAO implements DAO<Auction, String> {
 
     private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -35,11 +32,9 @@ public class AuctionDAO implements DAO<Auction, String> {
             pstmt.setInt(8, auction.getTotalBids());
 
             pstmt.executeUpdate();
-            System.out.println("[AuctionDAO] Đã lưu phiên đấu giá cho sản phẩm: " + auction.getItem().getName());
             return auction;
 
         } catch (SQLException e) {
-            System.err.println("[AuctionDAO] Lỗi khi lưu phiên đấu giá: " + e.getMessage());
             throw new RuntimeException("Lỗi database khi lưu Auction", e);
         }
     }
@@ -57,28 +52,37 @@ public class AuctionDAO implements DAO<Auction, String> {
     public boolean deleteById(String id) { return false; }
 
     /**
-     * Lấy danh sách đấu giá cho bảng hiển thị (Bao gồm End Time để đếm ngược)
+     * ĐÃ NÂNG CẤP: Lấy thêm Mô tả (description) và Ảnh (image_path)
      */
     public java.util.List<String[]> getAuctionListForTable() {
         java.util.List<String[]> list = new java.util.ArrayList<>();
         try (java.sql.Connection conn = com.bidhub.server.database.DatabaseManager.getInstance().getConnection();
              java.sql.Statement stmt = conn.createStatement()) {
 
-            // Bơm dữ liệu mẫu nếu DB trống
+            // Đảm bảo các cột mới tồn tại
+            try { stmt.execute("ALTER TABLE items ADD COLUMN description TEXT"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE items ADD COLUMN image_path TEXT"); } catch (Exception ignored) {}
+
             stmt.execute("INSERT OR IGNORE INTO users (id, username, password_hash, role, wallet_balance) VALUES ('u_admin', 'admin', '123', 'SELLER', 0.0)");
-            stmt.execute("INSERT OR IGNORE INTO items (id, name, starting_price, seller_id, item_type) VALUES ('it_1', 'iPhone 15 Pro Max', 25000000.0, 'admin', 'Điện thoại')");
-            stmt.execute("INSERT OR IGNORE INTO items (id, name, starting_price, seller_id, item_type) VALUES ('it_2', 'Đồng hồ Rolex Submariner', 150000000.0, 'admin', 'Thời trang')");
+
+            // Cập nhật dữ liệu mẫu có thêm cột mô tả và ảnh
+            stmt.execute("INSERT OR IGNORE INTO items (id, name, starting_price, seller_id, item_type, description, image_path) VALUES ('it_1', 'iPhone 15 Pro Max', 25000000.0, 'admin', 'Điện thoại', 'Hàng mới nguyên seal 100%', 'no_image.png')");
+            stmt.execute("INSERT OR IGNORE INTO items (id, name, starting_price, seller_id, item_type, description, image_path) VALUES ('it_2', 'Đồng hồ Rolex Submariner', 150000000.0, 'admin', 'Thời trang', 'Đồng hồ cơ Thụy Sĩ chính hãng', 'no_image.png')");
+
             stmt.execute("INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('au_1', 'it_1', 'admin', '2026-04-01', '2026-05-30', 'Đang diễn ra', 25000000.0)");
             stmt.execute("INSERT OR IGNORE INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) VALUES ('au_2', 'it_2', 'admin', '2026-04-05', '2026-06-20', 'Sắp bắt đầu', 150000000.0)");
 
-            String sql = "SELECT i.name, a.current_highest_bid, a.status, a.end_time FROM auctions a JOIN items i ON a.item_id = i.id";
+            // NÂNG CẤP LỆNH SQL: Lấy cả description và image_path
+            String sql = "SELECT i.name, a.current_highest_bid, a.status, a.end_time, i.description, i.image_path FROM auctions a JOIN items i ON a.item_id = i.id";
             try (java.sql.ResultSet rs = stmt.executeQuery(sql)) {
                 while (rs.next()) {
                     list.add(new String[]{
                             rs.getString("name"),
                             String.format("%,.0f VNĐ", rs.getDouble("current_highest_bid")),
                             rs.getString("status"),
-                            rs.getString("end_time")
+                            rs.getString("end_time"),
+                            rs.getString("description"), // Dữ liệu thứ 5
+                            rs.getString("image_path")   // Dữ liệu thứ 6
                     });
                 }
             }
@@ -88,9 +92,6 @@ public class AuctionDAO implements DAO<Auction, String> {
         return list;
     }
 
-    /**
-     * Xử lý đặt giá: Trừ tiền người mới, hoàn tiền người cũ
-     */
     public String placeBid(String username, String itemName, double bidAmount) {
         try (java.sql.Connection conn = com.bidhub.server.database.DatabaseManager.getInstance().getConnection()) {
             try (java.sql.Statement stmt = conn.createStatement()) {
@@ -99,7 +100,6 @@ public class AuctionDAO implements DAO<Auction, String> {
 
             conn.setAutoCommit(false);
             try {
-                // 1. Kiểm tra ví
                 double balance = 0;
                 String checkUserSql = "SELECT wallet_balance FROM users WHERE username = ?";
                 try (java.sql.PreparedStatement pstmt = conn.prepareStatement(checkUserSql)) {
@@ -110,7 +110,6 @@ public class AuctionDAO implements DAO<Auction, String> {
                 }
                 if (balance < bidAmount) return "Số dư không đủ!";
 
-                // 2. Kiểm tra giá hiện tại
                 String checkAuctionSql = "SELECT a.id, a.current_highest_bid, a.status, a.highest_bidder FROM auctions a JOIN items i ON a.item_id = i.id WHERE i.name = ?";
                 String auctionId = "";
                 double currentBid = 0;
@@ -129,7 +128,6 @@ public class AuctionDAO implements DAO<Auction, String> {
                 if (bidAmount <= currentBid) return "Giá phải cao hơn " + currentBid;
                 if (username.equals(previousBidder)) return "Bạn đang dẫn đầu!";
 
-                // 3. Trừ tiền người mới
                 String deductSql = "UPDATE users SET wallet_balance = wallet_balance - ? WHERE username = ?";
                 try (java.sql.PreparedStatement pstmt = conn.prepareStatement(deductSql)) {
                     pstmt.setDouble(1, bidAmount);
@@ -137,7 +135,6 @@ public class AuctionDAO implements DAO<Auction, String> {
                     pstmt.executeUpdate();
                 }
 
-                // 4. Hoàn tiền người cũ
                 if (previousBidder != null && !previousBidder.isEmpty()) {
                     String refundSql = "UPDATE users SET wallet_balance = wallet_balance + ? WHERE username = ?";
                     try (java.sql.PreparedStatement pstmt = conn.prepareStatement(refundSql)) {
@@ -147,7 +144,6 @@ public class AuctionDAO implements DAO<Auction, String> {
                     }
                 }
 
-                // 5. Cập nhật giá cao nhất
                 String updateBidSql = "UPDATE auctions SET current_highest_bid = ?, highest_bidder = ? WHERE id = ?";
                 try (java.sql.PreparedStatement pstmt = conn.prepareStatement(updateBidSql)) {
                     pstmt.setDouble(1, bidAmount);
@@ -169,35 +165,39 @@ public class AuctionDAO implements DAO<Auction, String> {
         }
     }
 
-    /**
-     * Đăng bán sản phẩm (Đã hỗ trợ chọn ngày kết thúc cụ thể)
-     */
-    public boolean addAuctionItem(String sellerId, String itemName, double startingPrice, String endTimeStr) {
+    public boolean addAuctionItem(String sellerId, String itemName, double startingPrice, String endTimeStr, String description, String imagePath) {
         try (java.sql.Connection conn = com.bidhub.server.database.DatabaseManager.getInstance().getConnection()) {
+            try (java.sql.Statement stmt = conn.createStatement()) {
+                stmt.execute("ALTER TABLE items ADD COLUMN description TEXT");
+            } catch (Exception ignored) {}
+            try (java.sql.Statement stmt = conn.createStatement()) {
+                stmt.execute("ALTER TABLE items ADD COLUMN image_path TEXT");
+            } catch (Exception ignored) {}
+
             conn.setAutoCommit(false);
             try {
                 String itemId = java.util.UUID.randomUUID().toString();
                 String auctionId = java.util.UUID.randomUUID().toString();
 
-                // 1. Lưu Item
-                String insertItem = "INSERT INTO items (id, name, starting_price, seller_id, item_type) VALUES (?, ?, ?, ?, ?)";
+                String insertItem = "INSERT INTO items (id, name, starting_price, seller_id, item_type, description, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)";
                 try (java.sql.PreparedStatement ps = conn.prepareStatement(insertItem)) {
                     ps.setString(1, itemId);
                     ps.setString(2, itemName);
                     ps.setDouble(3, startingPrice);
                     ps.setString(4, sellerId);
                     ps.setString(5, "Khác");
+                    ps.setString(6, description);
+                    ps.setString(7, imagePath);
                     ps.executeUpdate();
                 }
 
-                // 2. Lưu Auction với End Time do người dùng chọn
                 String insertAuction = "INSERT INTO auctions (id, item_id, seller_id, start_time, end_time, status, current_highest_bid) " +
                         "VALUES (?, ?, ?, date('now'), ?, 'Đang diễn ra', ?)";
                 try (java.sql.PreparedStatement ps = conn.prepareStatement(insertAuction)) {
                     ps.setString(1, auctionId);
                     ps.setString(2, itemId);
                     ps.setString(3, sellerId);
-                    ps.setString(4, endTimeStr); // Biến ngày chọn từ lịch
+                    ps.setString(4, endTimeStr);
                     ps.setDouble(5, startingPrice);
                     ps.executeUpdate();
                 }
@@ -206,7 +206,6 @@ public class AuctionDAO implements DAO<Auction, String> {
                 return true;
             } catch (Exception ex) {
                 conn.rollback();
-                System.err.println("Lỗi lưu hàng hóa: " + ex.getMessage());
                 return false;
             } finally {
                 conn.setAutoCommit(true);
@@ -216,23 +215,13 @@ public class AuctionDAO implements DAO<Auction, String> {
         }
     }
 
-    /**
-     * Tự động quét và chốt đơn các phiên đấu giá đã hết hạn
-     */
     public void closeExpiredAuctions() {
-        // Lấy thời gian hiện tại theo chuẩn YYYY-MM-DD
         String now = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-
-        // SQLite lưu ngày tháng dạng chuỗi, ta dùng phép so sánh chuỗi < ngày hiện tại
-        // Đổi thành "Đã kết thúc" nếu ngày kết thúc (end_time) nằm trong quá khứ so với hôm nay
         String sql = "UPDATE auctions SET status = 'Đã kết thúc' WHERE status = 'Đang diễn ra' AND end_time < ?";
-
         try (java.sql.Connection conn = com.bidhub.server.database.DatabaseManager.getInstance().getConnection();
              java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
             pstmt.setString(1, now);
             int updatedCount = pstmt.executeUpdate();
-
             if (updatedCount > 0) {
                 System.out.println("[HỆ THỐNG] Đã tự động chốt đơn " + updatedCount + " phiên đấu giá hết hạn!");
             }
