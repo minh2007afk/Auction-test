@@ -4,17 +4,6 @@
 
 ---
 
-## Thành viên nhóm
-
-| Ký hiệu | Họ tên | Vai trò chính |
-|---------|--------|---------------|
-| **Đăng** | Vũ Tiến Đăng | Server Core & Database |
-| **Quốc Minh** | Nguyễn Quốc Minh | Networking & Protocol |
-| **Công Minh** | Nguyễn Công Minh | Client GUI (JavaFX) |
-| **Khoa** | Trần Đăng Khoa | Business Logic & Testing |
-
----
-
 ## Mô tả bài toán & Phạm vi hệ thống
 
 **BidHub** là hệ thống đấu giá trực tuyến cho phép nhiều người dùng kết nối đồng thời qua mạng để tham gia mua bán hàng hóa theo hình thức đấu giá.
